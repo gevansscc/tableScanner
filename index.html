@@ -1,29 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>Table Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #reader { width: 100%; max-width: 400px; margin: auto; }
+    #result { margin-top: 20px; font-size: 18px; font-weight: bold; color: green; }
+  </style>
 </head>
 <body>
-  <h1>Table 1 Scanner</h1>
-  <div id="reader" style="width:300px"></div>
-  <div id="result"></div>
 
-  <script>
-    const tableId = 1; // set table number
+<h1>Table 1 Scanner</h1>
+<div id="reader"></div>
+<div id="result">Scan a student QR code</div>
 
-    function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById('result').innerText = 'Scanned: ' + decodedText;
+<script>
+  const tableId = 1; // Set your table number here
+  const resultEl = document.getElementById("result");
 
-      // Send student ID + table ID to Google Sheet (via Apps Script web app)
-      fetch('https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec?student_id=' + decodedText + '&table_id=' + tableId)
-        .then(response => response.text())
-        .then(data => document.getElementById('result').innerText = data)
-        .catch(err => document.getElementById('result').innerText = 'Error: ' + err);
-    }
+  // Function to detect mobile
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
+  }
 
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 10 }, onScanSuccess);
-  </script>
+  // Choose camera config based on device
+  let cameraConfig = {};
+  if (isMobile()) {
+    cameraConfig = { facingMode: { exact: "environment" } }; // rear camera
+  } else {
+    cameraConfig = { facingMode: "user" }; // default webcam
+  }
+
+  function onScanSuccess(decodedText, decodedResult) {
+    resultEl.innerText = 'Scanned: ' + decodedText;
+
+    // Send student_id + table_id to Google Apps Script web app
+    fetch('https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec?student_id=' + encodeURIComponent(decodedText) + '&table_id=' + tableId)
+      .then(response => response.text())
+      .then(data => resultEl.innerText = data)
+      .catch(err => resultEl.innerText = 'Error: ' + err);
+  }
+
+  const html5QrCode = new Html5Qrcode("reader");
+
+  html5QrCode.start(
+    cameraConfig,
+    { fps: 10, qrbox: 250 },
+    onScanSuccess
+  ).catch(err => {
+    resultEl.innerText = 'Camera initialization failed: ' + err;
+    console.error(err);
+  });
+</script>
+
 </body>
 </html>
