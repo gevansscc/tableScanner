@@ -5,9 +5,9 @@
   <title>Table Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    /* Full-page mid-grey background and centered layout */
+    /* Darker full-page background and centered layout */
     body {
-      background-color: #888888; /* mid grey */
+      background-color: #333333; /* darker grey */
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -22,21 +22,26 @@
     h1 {
       margin-bottom: 20px;
       text-align: center;
+      color: white;
     }
 
     /* Scanner container */
     #reader {
-      width: 90%;       /* almost full width */
-      max-width: 600px; /* max width for big screens */
+      width: 95%;        /* almost full width */
+      max-width: 800px;  /* max width for large screens */
+      height: 500px;     /* taller height for bigger preview */
       margin: auto;
-      border: 4px solid #444;  /* subtle border for visibility */
+      border: 4px solid #444;
       border-radius: 8px;
       background-color: #222;  /* dark container for contrast */
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     #result {
       margin-top: 20px;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       text-align: center;
       color: #00ff00; /* bright green for success */
@@ -81,7 +86,7 @@
 
   html5QrCode.start(
     cameraConfig,
-    { fps: 10, qrbox: { width: 400, height: 400 } }, // larger box for preview
+    { fps: 10, qrbox: { width: 500, height: 500 } }, // larger QR box
     onScanSuccess
   ).catch(err => {
     resultEl.innerText = 'Camera initialization failed: ' + err;
