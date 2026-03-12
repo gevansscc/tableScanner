@@ -5,7 +5,6 @@
   <title>Table Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    /* Darker full-page background and centered layout */
     body {
       background-color: #333333; /* darker grey */
       display: flex;
@@ -25,15 +24,14 @@
       color: white;
     }
 
-    /* Scanner container */
     #reader {
-      width: 95%;        /* almost full width */
-      max-width: 800px;  /* max width for large screens */
-      height: 500px;     /* taller height for bigger preview */
+      width: 95%;
+      max-width: 800px;
+      height: 500px;
       margin: auto;
       border: 4px solid #444;
       border-radius: 8px;
-      background-color: #222;  /* dark container for contrast */
+      background-color: #222;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -44,27 +42,41 @@
       font-size: 22px;
       font-weight: bold;
       text-align: center;
-      color: #00ff00; /* bright green for success */
+      color: #00ff00;
     }
   </style>
 </head>
 <body>
 
-<h1>Table 1 Scanner</h1>
+<h1 id="table-header">Table Scanner</h1>
 
 <div id="reader"></div>
 <div id="result">Scan a student QR code</div>
 
 <script>
-  const tableId = 1; // Set your table number here
   const resultEl = document.getElementById("result");
+  const headerEl = document.getElementById("table-header");
 
-  // Detect mobile devices
+  // Function to get table number from URL
+  function getTableNumber() {
+    const params = new URLSearchParams(window.location.search);
+    const table = params.get("table");
+    if (table && !isNaN(table)) {
+      return parseInt(table);
+    } else {
+      return 1; // default to 1 if not provided
+    }
+  }
+
+  const tableId = getTableNumber();
+  headerEl.innerText = "Table " + tableId + " Scanner";
+
+  // Detect mobile
   function isMobile() {
     return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
   }
 
-  // Choose camera based on device
+  // Camera config
   let cameraConfig = {};
   if (isMobile()) {
     cameraConfig = { facingMode: { exact: "environment" } }; // rear camera
@@ -76,7 +88,8 @@
     resultEl.innerText = 'Scanned: ' + decodedText;
 
     // Send student_id + table_id to Google Apps Script Web App
-    fetch('https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec?student_id=' + encodeURIComponent(decodedText) + '&table_id=' + tableId)
+    fetch('https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec?student_id=' 
+      + encodeURIComponent(decodedText) + '&table_id=' + tableId)
       .then(response => response.text())
       .then(data => resultEl.innerText = data)
       .catch(err => resultEl.innerText = 'Error: ' + err);
@@ -86,7 +99,7 @@
 
   html5QrCode.start(
     cameraConfig,
-    { fps: 10, qrbox: { width: 500, height: 500 } }, // larger QR box
+    { fps: 10, qrbox: { width: 500, height: 500 } },
     onScanSuccess
   ).catch(err => {
     resultEl.innerText = 'Camera initialization failed: ' + err;
