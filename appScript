@@ -1,0 +1,72 @@
+//Google Sheets app script.
+
+function onFormSubmit(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("black_joy_activation");
+  var lastRow = sheet.getLastRow();
+  
+  // Generate unique student ID
+  var studentID = "SCC-EVE-BLKJY" + Math.floor(10000 + Math.random() * 90000);
+  
+  // Insert the ID in column 4 (adjust if needed)
+  sheet.getRange(lastRow, 7).setValue(studentID);
+  
+  // Generate QR code URL
+  var url = "https://yourevent.com/checkin?id=" + studentID; // placeholder URL
+  var qrURL = "https://api.qrserver.com/v1/create-qr-code/?data=" + encodeURIComponent(url) + "&size=150x150";
+  
+  // Insert QR URL in column 5
+  sheet.getRange(lastRow, 6).setValue(qrURL);
+  
+  // Optional: log to console
+  Logger.log("Student ID: " + studentID + ", QR: " + qrURL);
+}
+
+// --------------------------
+// Live Table Count Endpoint
+// --------------------------
+// Usage: scanner page calls
+// GET ?action=count&qr_id=XXXX
+// Returns JSON: { count: X, totalTables: Y }
+// --------------------------
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var scansSheet = ss.getSheetByName("Scans");
+
+  // Check parameters
+  var qrId = e.parameter.qr_id;
+  var action = e.parameter.action;
+
+  if (!qrId || action !== "count") {
+    return ContentService.createTextOutput(JSON.stringify({
+      error: "Missing parameters or invalid action"
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // --------------------------
+  // Count how many tables this student has scanned
+  // --------------------------
+  var scanData = scansSheet.getDataRange().getValues();
+  var count = 0;
+  for (var i = 1; i < scanData.length; i++) { // skip header
+    if (scanData[i][3] === qrId) { // column 4 = qr_id
+      count++;
+    }
+  }
+
+  // --------------------------
+  // Total tables at the event
+  // --------------------------
+  var totalTables = 10; // Adjust to your event
+
+  // --------------------------
+  // Return JSON response
+  // --------------------------
+  var response = {
+    count: count,
+    totalTables: totalTables
+  };
+
+  return ContentService
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}
