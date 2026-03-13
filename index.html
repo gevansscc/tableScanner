@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <title>Table Scanner</title>
 
-<!-- CSP-safe QR scanner library -->
-<script src="./js/html5-qrcode.min.js"></script>
+<!-- Self-hosted html5-qrcode or CSP-safe version -->
+<script src="js/html5-qrcode.min.js"></script>
 
 <style>
 body {
-  background: #444; /* mid-grey */
+  background: #444; /* dark grey */
   font-family: Arial, Helvetica, sans-serif;
   color: white;
   text-align: center;
@@ -24,7 +24,7 @@ h1 {
 
 #reader {
   width: 100%;
-  max-width: 800px; /* larger preview */
+  max-width: 800px;
   margin: 0 auto;
   border: 4px solid #333;
   border-radius: 12px;
@@ -39,7 +39,16 @@ h1 {
   transition: color 0.3s;
 }
 
-/* Flash animation for scan success */
+#progress {
+  margin-top: 10px;
+  font-size: 20px;
+  color: #0f0;
+}
+
+.error-message {
+  color: #f00;
+}
+
 .flash-success {
   animation: flashGreen 0.5s;
 }
@@ -59,16 +68,21 @@ h1 {
 <div id="reader"></div>
 
 <div id="result">Waiting for scan...</div>
+<div id="progress">Tables visited: 0 / 10</div>
+
+<!-- Beep sound on success -->
+<audio id="beep" src="beep.mp3" preload="auto"></audio>
 
 <script>
 // --------------------------
 // CONFIG
 // --------------------------
-// Replace with your Apps Script Web App URL
+// Replace with your Apps Script Web App deployment URL
 const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz1JxDu3mEVCh0tCWWJQKF0x1xCFFv9EgpFEOokRIiAwvk3uxsAOayURRUGUwsKzxRzkQ/exec";
+const TOTAL_TABLES = 10; // total tables in event
 
 // --------------------------
-// Get table number from URL (e.g., scanner.html?table=3)
+// Get table number from URL, e.g., scanner.html?table=3
 // --------------------------
 const params = new URLSearchParams(window.location.search);
 const tableId = params.get("table") || "1";
@@ -83,35 +97,47 @@ function isMobile() {
 
 // --------------------------
 // Camera configuration
-// Back-facing for mobile, front for desktop
 // --------------------------
-let cameraConfig = isMobile()
+let cameraConfig = isMobile() 
   ? { facingMode: { exact: "environment" } }
   : { facingMode: "user" };
 
 // --------------------------
-// Scan lock prevents multiple triggers in rapid succession
+// Scan lock
 // --------------------------
 let scanLock = false;
 
 // --------------------------
-// QR scan success handler
+// Update live table count
 // --------------------------
-function onScanSuccess(decodedText) {
-  if (scanLock) return;
+function updateProgress(qrId){
+  fetch(`${WEBAPP_URL}?action=count&qr_id=${qrId}`)
+    .then(res=>res.json())
+    .then(data=>{
+      document.getElementById("progress").innerText =
+        `Tables visited: ${data.count} / ${data.totalTables}`;
+    })
+    .catch(err=>console.error("Progress fetch error:", err));
+}
+
+// --------------------------
+// Handle scan success
+// --------------------------
+function onScanSuccess(decodedText){
+  if(scanLock) return;
   scanLock = true;
 
   let qrId = decodedText;
-  // If QR contains a URL like ?id=XXXXX, extract the ID
-  if (decodedText.includes("id=")) {
+  if(decodedText.includes("id=")){
     let url = new URL(decodedText);
     qrId = url.searchParams.get("id");
   }
 
+  document.getElementById("result").classList.remove("error-message");
   document.getElementById("result").innerText = "Processing...";
 
   // --------------------------
-  // Send POST request to Apps Script backend
+  // POST scan to Apps Script
   // --------------------------
   let formData = new FormData();
   formData.append("qr_id", qrId);
@@ -120,36 +146,42 @@ function onScanSuccess(decodedText) {
   fetch(WEBAPP_URL, {
     method: "POST",
     body: formData,
-    mode: "no-cors" // avoids CORS issues
+    mode: "no-cors" // avoids CORS errors
   })
   .then(() => {
-    // Green flash + success message
+    // Flash + beep
     document.getElementById("result").innerText = "Scan recorded";
     const readerDiv = document.getElementById("reader");
     readerDiv.classList.add("flash-success");
-    setTimeout(() => { readerDiv.classList.remove("flash-success"); }, 500);
+    document.getElementById("beep").play();
+    setTimeout(()=>{ readerDiv.classList.remove("flash-success"); }, 500);
+
+    // Update progress
+    updateProgress(qrId);
   })
   .catch(err => {
     console.error("Fetch error:", err);
+    document.getElementById("result").classList.add("error-message");
     document.getElementById("result").innerText = "Error sending scan";
   });
 
   // Unlock after 2 seconds
-  setTimeout(() => { scanLock = false; }, 2000);
+  setTimeout(()=>{ scanLock = false; }, 2000);
 }
 
 // --------------------------
-// Start the QR scanner
+// Initialize QR scanner
 // --------------------------
 const html5QrCode = new Html5Qrcode("reader");
-const scannerConfig = { fps: 10, qrbox: 400 }; // higher FPS & larger box
-
 html5QrCode.start(
   cameraConfig,
-  scannerConfig,
+  { fps: 20, qrbox: 400 },
   onScanSuccess
 );
 </script>
+
+</body>
+</html>
 
 </body>
 </html>
