@@ -1,113 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Table Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <style>
-    body {
-      background-color: #333333; /* darker grey */
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
-      margin: 0;
-      font-family: sans-serif;
-      color: white;
-      padding-top: 20px;
-    }
+<meta charset="UTF-8">
+<title>Table Scanner</title>
 
-    h1 {
-      margin-bottom: 20px;
-      text-align: center;
-      color: white;
-    }
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-    #reader {
-      width: 95%;
-      max-width: 800px;
-      height: 500px;
-      margin: auto;
-      border: 4px solid #444;
-      border-radius: 8px;
-      background-color: #222;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+<style>
 
-    #result {
-      margin-top: 20px;
-      font-size: 22px;
-      font-weight: bold;
-      text-align: center;
-      color: #00ff00;
-    }
-  </style>
+body{
+  background:#444;
+  font-family:Arial, Helvetica, sans-serif;
+  color:white;
+  text-align:center;
+  margin:0;
+  padding:30px;
+}
+
+h1{
+  font-size:32px;
+}
+
+#reader{
+  width:100%;
+  max-width:650px;
+  margin:auto;
+}
+
+#result{
+  margin-top:20px;
+  font-size:22px;
+  font-weight:bold;
+}
+
+</style>
 </head>
+
 <body>
 
-<h1 id="table-header">Table Scanner</h1>
+<h1 id="tableTitle">Table Scanner</h1>
 
 <div id="reader"></div>
-<div id="result">Scan a student QR code</div>
+
+<div id="result">Waiting for scan...</div>
 
 <script>
-  const resultEl = document.getElementById("result");
-  const headerEl = document.getElementById("table-header");
 
-  // Function to get table number from URL
-  function getTableNumber() {
-    const params = new URLSearchParams(window.location.search);
-    const table = params.get("table");
-    if (table && !isNaN(table)) {
-      return parseInt(table);
-    } else {
-      return 1; // default to 1 if not provided
-    }
-  }
+// ----------------------------------
+// CONFIG
+// ----------------------------------
 
-  const tableId = getTableNumber();
-  headerEl.innerText = "Table " + tableId + " Scanner";
+const WEBAPP_URL = "PASTE_YOUR_WEBAPP_URL_HERE";
 
-  // Detect mobile
-  function isMobile() {
-    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
-  }
 
-  // Camera config
-  let cameraConfig = {};
-  if (isMobile()) {
-    cameraConfig = { facingMode: { exact: "environment" } }; // rear camera
-  } else {
-    cameraConfig = { facingMode: "user" }; // default webcam
-  }
+// ----------------------------------
+// GET TABLE NUMBER FROM URL
+// ----------------------------------
 
-  function onScanSuccess(decodedText, decodedResult) {
-    resultEl.innerText = 'Scanned: ' + decodedText;
+const params = new URLSearchParams(window.location.search);
+const tableId = params.get("table") || "1";
 
-    // Send student_id + table_id to Google Apps Script Web App
-    fetch('https://script.google.com/macros/s/YOUR_DEPLOYED_SCRIPT_ID/exec?student_id=' 
-      + encodeURIComponent(decodedText) + '&table_id=' + tableId)
-      .then(response => response.text())
-      .then(data => resultEl.innerText = data)
-      .catch(err => resultEl.innerText = 'Error: ' + err);
-  }
+document.getElementById("tableTitle").innerText = "Table " + tableId + " Scanner";
 
-  const html5QrCode = new Html5Qrcode("reader");
 
-  html5QrCode.start(
-    cameraConfig,
-    { fps: 10, qrbox: { width: 500, height: 500 } },
-    onScanSuccess
-  ).catch(err => {
-    resultEl.innerText = 'Camera initialization failed: ' + err;
-    console.error(err);
-  });
+// ----------------------------------
+// MOBILE DETECTION
+// ----------------------------------
+
+function isMobile() {
+ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+
+// ----------------------------------
+// CAMERA SELECTION
+// ----------------------------------
+
+let cameraConfig;
+
+if(isMobile()){
+ cameraConfig = { facingMode: { exact: "environment" } };
+}else{
+ cameraConfig = { facingMode: "user" };
+}
+
+
+// ----------------------------------
+// QR SCAN SUCCESS
+// ----------------------------------
+
+function onScanSuccess(decodedText) {
+
+ let qrId = decodedText;
+
+ // if QR contains a URL like ?id=XXXXX extract it
+ if(decodedText.includes("id=")){
+   let url = new URL(decodedText);
+   qrId = url.searchParams.get("id");
+ }
+
+ document.getElementById("result").innerText = "Processing...";
+
+ fetch(`${WEBAPP_URL}?qr_id=${qrId}&table_id=${tableId}`)
+   .then(res => res.text())
+   .then(data => {
+
+      document.getElementById("result").innerText = data;
+
+   })
+   .catch(err=>{
+      document.getElementById("result").innerText = "Error";
+      console.error(err);
+   });
+
+}
+
+
+// ----------------------------------
+// START SCANNER
+// ----------------------------------
+
+const html5QrCode = new Html5Qrcode("reader");
+
+html5QrCode.start(
+ cameraConfig,
+ {
+   fps:10,
+   qrbox:350
+ },
+ onScanSuccess
+);
+
 </script>
 
 </body>
 </html>
-
-<!--https://yourscanner.com/scanner.html?table=1  -->
