@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <title>Table Scanner</title>
 
-<!-- QR code scanning library -->
-<script src="https://unpkg.com/html5-qrcode"></script>
+<!-- ✅ Updated QR code library from jsDelivr (CSP-safe) -->
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
 <style>
 body{
@@ -45,38 +45,31 @@ h1{
 
 <script>
 // --------------------------
-// CONFIG
+// CONFIG - Replace this with your Apps Script Web App URL
 // --------------------------
-// Replace with your Apps Script Web App deployment URL
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz1JxDu3mEVCh0tCWWJQKF0x1xCFFv9EgpFEOokRIiAwvk3uxsAOayURRUGUwsKzxRzkQ/exec";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz1JxDu3mEVCh0tCWWJQKF0x1xCFFv9EgpFEOokRIiAwvk3uxsAOayURRUGUwsKzxRzkQ/exec"; 
 
 // --------------------------
-// Get table number from URL parameter
-// e.g., scanner.html?table=3
+// Get table number from URL param, e.g., scanner.html?table=3
 // --------------------------
 const params = new URLSearchParams(window.location.search);
 const tableId = params.get("table") || "1";
-
 document.getElementById("tableTitle").innerText = "Table " + tableId + " Scanner";
 
 // --------------------------
 // Mobile detection
 // --------------------------
 function isMobile() {
- return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
 // --------------------------
 // Camera configuration
 // Back-facing camera for mobile, front for desktop
 // --------------------------
-let cameraConfig;
-
-if(isMobile()){
- cameraConfig = { facingMode: { exact: "environment" } };
-}else{
- cameraConfig = { facingMode: "user" };
-}
+let cameraConfig = isMobile()
+  ? { facingMode: { exact: "environment" } }
+  : { facingMode: "user" };
 
 // --------------------------
 // Scan lock to prevent rapid duplicate scans
@@ -88,37 +81,37 @@ let scanLock = false;
 // --------------------------
 function onScanSuccess(decodedText) {
 
- if(scanLock) return; // prevent multiple triggers
- scanLock = true;
+  if(scanLock) return; // prevent multiple triggers
+  scanLock = true;
 
- let qrId = decodedText;
+  let qrId = decodedText;
 
- // If QR contains a URL like ?id=XXXXX, extract the ID
- if(decodedText.includes("id=")){
-   let url = new URL(decodedText);
-   qrId = url.searchParams.get("id");
- }
+  // Extract ID if QR contains a URL with ?id=XXXXX
+  if(decodedText.includes("id=")){
+    let url = new URL(decodedText);
+    qrId = url.searchParams.get("id");
+  }
 
- document.getElementById("result").innerText = "Processing...";
+  document.getElementById("result").innerText = "Processing...";
 
- // --------------------------
- // Send scan to Apps Script
- // Use no-cors mode to avoid CORS issues
- // --------------------------
- fetch(`${WEBAPP_URL}?qr_id=${qrId}&table_id=${tableId}`, {
-   method: "GET",
-   mode: "no-cors"
- })
- .then(() => {
-   document.getElementById("result").innerText = "Scan recorded";
- })
- .catch(err => {
-   console.error(err);
-   document.getElementById("result").innerText = "Connection sent";
- });
+  // --------------------------
+  // Send scan to Apps Script backend
+  // Use no-cors mode to avoid CORS issues
+  // --------------------------
+  fetch(`${WEBAPP_URL}?qr_id=${qrId}&table_id=${tableId}`, {
+    method: "GET",
+    mode: "no-cors" // avoids CORS issues with Apps Script
+  })
+  .then(() => {
+    document.getElementById("result").innerText = "Scan recorded";
+  })
+  .catch(err => {
+    console.error(err);
+    document.getElementById("result").innerText = "Scan sent";
+  });
 
- // Unlock after 2 seconds to allow next scan
- setTimeout(()=>{ scanLock=false; }, 2000);
+  // Unlock after 2 seconds to allow next scan
+  setTimeout(()=>{ scanLock=false; }, 2000);
 }
 
 // --------------------------
@@ -126,11 +119,16 @@ function onScanSuccess(decodedText) {
 // --------------------------
 const html5QrCode = new Html5Qrcode("reader");
 
+// ✅ Adjusted fps for performance
+// Higher FPS = more responsive but more CPU usage
+const scannerConfig = { fps: 20, qrbox: 350 }; 
+
 html5QrCode.start(
- cameraConfig,
- { fps:10, qrbox:350 },
- onScanSuccess
+  cameraConfig,
+  scannerConfig,
+  onScanSuccess
 );
+
 </script>
 
 </body>
