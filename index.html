@@ -8,46 +8,46 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <style>
-body{
-  background:#555; /* mid-grey */
-  font-family:Arial, Helvetica, sans-serif;
-  color:white;
-  text-align:center;
-  margin:0;
-  padding:20px;
+body {
+  background: #444; /* mid-grey */
+  font-family: Arial, Helvetica, sans-serif;
+  color: white;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
 }
 
-h1{
-  font-size:32px;
-  margin-bottom:20px;
+h1 {
+  font-size: 32px;
+  margin-bottom: 20px;
 }
 
-#reader{
-  width:100%;
-  max-width:800px; /* larger preview */
-  margin:0 auto;
-  border:4px solid #333;
-  border-radius:12px;
-  box-shadow:0 0 20px #000;
-  transition:border-color 0.2s, box-shadow 0.2s;
+#reader {
+  width: 100%;
+  max-width: 800px; /* larger preview */
+  margin: 0 auto;
+  border: 4px solid #333;
+  border-radius: 12px;
+  box-shadow: 0 0 20px #000;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-#result{
-  margin-top:20px;
-  font-size:24px;
-  font-weight:bold;
-  transition:color 0.3s;
+#result {
+  margin-top: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  transition: color 0.3s;
 }
 
 /* Flash animation for scan success */
-.flash-success{
+.flash-success {
   animation: flashGreen 0.5s;
 }
 
-@keyframes flashGreen{
-  0%{ border-color:#0f0; box-shadow:0 0 20px #0f0; }
-  50%{ border-color:#fff; box-shadow:0 0 20px #fff; }
-  100%{ border-color:#333; box-shadow:0 0 20px #000; }
+@keyframes flashGreen {
+  0% { border-color: #0f0; box-shadow: 0 0 20px #0f0; }
+  50% { border-color: #fff; box-shadow: 0 0 20px #fff; }
+  100% { border-color: #333; box-shadow: 0 0 20px #000; }
 }
 </style>
 </head>
@@ -62,12 +62,13 @@ h1{
 
 <script>
 // --------------------------
-// CONFIG - replace with your Apps Script Web App URL
+// CONFIG
 // --------------------------
+// Replace with your Apps Script Web App URL
 const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz1JxDu3mEVCh0tCWWJQKF0x1xCFFv9EgpFEOokRIiAwvk3uxsAOayURRUGUwsKzxRzkQ/exec";
 
 // --------------------------
-// Get table number from URL, e.g., scanner.html?table=3
+// Get table number from URL (e.g., scanner.html?table=3)
 // --------------------------
 const params = new URLSearchParams(window.location.search);
 const tableId = params.get("table") || "1";
@@ -81,26 +82,28 @@ function isMobile() {
 }
 
 // --------------------------
-// Camera config
+// Camera configuration
+// Back-facing for mobile, front for desktop
 // --------------------------
 let cameraConfig = isMobile()
-  ? { facingMode:{ exact:"environment" } }
-  : { facingMode:"user" };
+  ? { facingMode: { exact: "environment" } }
+  : { facingMode: "user" };
 
 // --------------------------
-// Scan lock
+// Scan lock prevents multiple triggers in rapid succession
 // --------------------------
 let scanLock = false;
 
 // --------------------------
-// QR scan success
+// QR scan success handler
 // --------------------------
-function onScanSuccess(decodedText){
-  if(scanLock) return;
+function onScanSuccess(decodedText) {
+  if (scanLock) return;
   scanLock = true;
 
   let qrId = decodedText;
-  if(decodedText.includes("id=")){
+  // If QR contains a URL like ?id=XXXXX, extract the ID
+  if (decodedText.includes("id=")) {
     let url = new URL(decodedText);
     qrId = url.searchParams.get("id");
   }
@@ -108,31 +111,38 @@ function onScanSuccess(decodedText){
   document.getElementById("result").innerText = "Processing...";
 
   // --------------------------
-  // Send GET request to Apps Script
+  // Send POST request to Apps Script backend
   // --------------------------
-  fetch(`${WEBAPP_URL}?qr_id=${qrId}&table_id=${tableId}`)
-    .then(res=>res.text())
-    .then(data=>{
-      document.getElementById("result").innerText = data;
+  let formData = new FormData();
+  formData.append("qr_id", qrId);
+  formData.append("table_id", tableId);
 
-      // Flash green on successful scan
-      const readerDiv = document.getElementById("reader");
-      readerDiv.classList.add("flash-success");
-      setTimeout(()=>{ readerDiv.classList.remove("flash-success"); },500);
-    })
-    .catch(err=>{
-      console.error(err);
-      document.getElementById("result").innerText="Error connecting";
-    });
+  fetch(WEBAPP_URL, {
+    method: "POST",
+    body: formData,
+    mode: "no-cors" // avoids CORS issues
+  })
+  .then(() => {
+    // Green flash + success message
+    document.getElementById("result").innerText = "Scan recorded";
+    const readerDiv = document.getElementById("reader");
+    readerDiv.classList.add("flash-success");
+    setTimeout(() => { readerDiv.classList.remove("flash-success"); }, 500);
+  })
+  .catch(err => {
+    console.error("Fetch error:", err);
+    document.getElementById("result").innerText = "Error sending scan";
+  });
 
-  setTimeout(()=>{ scanLock=false; }, 2000);
+  // Unlock after 2 seconds
+  setTimeout(() => { scanLock = false; }, 2000);
 }
 
 // --------------------------
-// Start scanner
+// Start the QR scanner
 // --------------------------
 const html5QrCode = new Html5Qrcode("reader");
-const scannerConfig = { fps:20, qrbox:400 }; // faster FPS, larger box
+const scannerConfig = { fps: 10, qrbox: 400 }; // higher FPS & larger box
 
 html5QrCode.start(
   cameraConfig,
